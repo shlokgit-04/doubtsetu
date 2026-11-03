@@ -10,7 +10,7 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-3.8-flash"
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % MODEL
 
 LANGS = {"en": "simple English", "hi": "simple Hindi (Devanagari script)", "mr": "simple Marathi (Devanagari script)"}
