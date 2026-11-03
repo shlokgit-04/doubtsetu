@@ -20,7 +20,7 @@ Students in India often study after school hours when no teacher is around. Most
 - A **demo mode** fallback: if the server key is absent, the app shows one built-in sample answer clearly labelled "Demo mode", so the interface is never empty.
 
 ## Try it
-- Live app: https://doubtsetu.onrender.com
+- Live app: https://doubtsetu-xm13.onrender.com
 - Repo: https://github.com/shlokgit-04/doubtsetu
 
 ## Run locally

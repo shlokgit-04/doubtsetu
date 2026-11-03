@@ -4,6 +4,7 @@ import os
 import re
 
 import requests
+import time
 from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
@@ -66,7 +67,21 @@ def call_gemini(question, lang, image_b64=None, image_mime=None):
         "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048, "responseMimeType": "application/json"},
     }
-    resp = requests.post(API_URL, headers={"x-goog-api-key": GEMINI_KEY}, json=payload, timeout=45)
+    resp = None
+    for attempt in range(3):
+        try:
+            resp = requests.post(API_URL, headers={"x-goog-api-key": GEMINI_KEY}, json=payload, timeout=60)
+        except requests.RequestException as e:
+            app.logger.error('gemini network error attempt %s: %s', attempt + 1, e)
+            if attempt == 2:
+                raise
+            time.sleep(2 * (attempt + 1))
+            continue
+        if resp.status_code in (429, 500, 503) and attempt < 2:
+            app.logger.warning('gemini http %s on attempt %s, retrying', resp.status_code, attempt + 1)
+            time.sleep(2 * (attempt + 1))
+            continue
+        break
     if not resp.ok:
         app.logger.error('gemini http %s: %s', resp.status_code, resp.text[:400])
         resp.raise_for_status()
