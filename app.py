@@ -67,7 +67,9 @@ def call_gemini(question, lang, image_b64=None, image_mime=None):
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048, "responseMimeType": "application/json"},
     }
     resp = requests.post(API_URL, headers={"x-goog-api-key": GEMINI_KEY}, json=payload, timeout=45)
-    resp.raise_for_status()
+    if not resp.ok:
+        app.logger.error('gemini http %s: %s', resp.status_code, resp.text[:400])
+        resp.raise_for_status()
     data = resp.json()
     text = data["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(_clean_json(text))
