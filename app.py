@@ -9,7 +9,7 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-2.5-flash"
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % MODEL
 
 LANGS = {"en": "simple English", "hi": "simple Hindi (Devanagari script)", "mr": "simple Marathi (Devanagari script)"}
@@ -66,7 +66,7 @@ def call_gemini(question, lang, image_b64=None, image_mime=None):
         "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048, "responseMimeType": "application/json"},
     }
-    resp = requests.post(API_URL, params={"key": GEMINI_KEY}, json=payload, timeout=45)
+    resp = requests.post(API_URL, headers={"x-goog-api-key": GEMINI_KEY}, json=payload, timeout=45)
     resp.raise_for_status()
     data = resp.json()
     text = data["candidates"][0]["content"]["parts"][0]["text"]
