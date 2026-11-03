@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DoubtSetu - your AI doubt buddy</title>
+<style>
+  :root { --bg:#0f1020; --card:#1b1d35; --ink:#f2f3fb; --mut:#9aa0c3; --acc:#7c6cff; --acc2:#2dd4bf; --ok:#34d399; --bad:#f87171; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:linear-gradient(160deg,#0f1020 0%,#191b33 60%,#101228 100%); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px 16px 60px; }
+  header { text-align:center; padding:28px 0 20px; }
+  h1 { font-size:2rem; letter-spacing:.5px; }
+  h1 span { color:var(--acc2); }
+  .tag { color:var(--mut); margin-top:8px; font-size:.95rem; }
+  .banner { background:#2a2450; border:1px solid #4b3f8f; color:#cfc6ff; padding:10px 14px; border-radius:10px; font-size:.85rem; margin-bottom:16px; text-align:center; display:none; }
+  .card { background:var(--card); border:1px solid #2c2f52; border-radius:16px; padding:20px; margin-top:16px; }
+  .langs { display:flex; gap:8px; justify-content:center; margin-bottom:14px; flex-wrap:wrap; }
+  .lang { padding:8px 18px; border-radius:999px; border:1px solid #3a3d6b; background:transparent; color:var(--mut); cursor:pointer; font-size:.95rem; }
+  .lang.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+  textarea { width:100%; min-height:110px; background:#12142a; color:var(--ink); border:1px solid #34376a; border-radius:12px; padding:14px; font-size:1rem; resize:vertical; }
+  .row { display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .btn { background:linear-gradient(135deg,var(--acc),#5b8cff); color:#fff; border:none; padding:13px 26px; border-radius:12px; font-size:1rem; cursor:pointer; font-weight:600; }
+  .btn:disabled { opacity:.5; cursor:wait; }
+  .file label { display:inline-block; padding:10px 16px; border:1px dashed #4a4d85; border-radius:12px; color:var(--mut); cursor:pointer; font-size:.9rem; }
+  .file input { display:none; }
+  .fname { color:var(--acc2); font-size:.85rem; margin-left:6px; }
+  .sample { color:var(--mut); font-size:.8rem; margin-top:10px; text-align:center; }
+  .sample a { color:var(--acc2); cursor:pointer; }
+  .out { display:none; }
+  .badge { display:inline-block; padding:4px 12px; border-radius:999px; font-size:.75rem; margin-bottom:10px; }
+  .badge.live { background:rgba(45,212,191,.15); color:var(--acc2); }
+  .badge.demo { background:rgba(250,204,21,.15); color:#facc15; }
+  .err { color:var(--bad); text-align:center; padding:14px; display:none; }
+  h2 { font-size:1.05rem; color:var(--acc2); margin:18px 0 8px; }
+  .concept { color:var(--ink); line-height:1.6; }
+  ol.steps { margin:8px 0 0 22px; line-height:1.9; color:#dfe2f5; }
+  .example { background:#12142a; border-left:3px solid var(--acc2); padding:12px 14px; border-radius:8px; margin-top:8px; color:#dfe2f5; line-height:1.6; }
+  .q { margin-top:14px; }
+  .q .qt { font-weight:600; margin-bottom:8px; }
+  .opt { display:block; width:100%; text-align:left; background:#12142a; border:1px solid #34376a; color:#dfe2f5; padding:11px 14px; border-radius:10px; margin:7px 0; cursor:pointer; font-size:.95rem; }
+  .opt.sel-ok { border-color:var(--ok); background:rgba(52,211,153,.12); }
+  .opt.sel-bad { border-color:var(--bad); background:rgba(248,113,113,.12); }
+  .why { color:var(--mut); font-size:.85rem; margin-top:4px; display:none; }
+  footer { text-align:center; color:#5b5f8a; font-size:.8rem; margin-top:36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Doubt<span>Setu</span></h1>
+    <div class="tag">Snap your doubt, get the concept. Marathi • Hindi • English</div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="card">
+    <div class="langs">
+      <button class="lang on" data-l="en">English</button>
+      <button class="lang" data-l="hi">हिंदी</button>
+      <button class="lang" data-l="mr">मराठी</button>
+    </div>
+    <textarea id="q" placeholder="Type your doubt here... e.g. Why does the moon change shape every night?"></textarea>
+    <div class="row">
+      <button class="btn" id="go">Solve my doubt</button>
+      <span class="file"><label for="img">📷 Attach a photo</label><input type="file" id="img" accept="image/*"></span>
+      <span class="fname" id="fname"></span>
+    </div>
+    <div class="sample">No doubt ready? Try: <a id="fill">"A shopkeeper gives 20% discount on a ₹450 bag. What is the final price?"</a></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card out" id="out">
+    <span class="badge live" id="badge">Live AI answer</span>
+    <h2>The concept</h2>
+    <p class="concept" id="concept"></p>
+    <h2>Step by step</h2>
+    <ol class="steps" id="steps"></ol>
+    <h2>Practice example</h2>
+    <div class="example" id="example"></div>
+    <h2>Quick quiz</h2>
+    <div id="quiz"></div>
+  </div>
+
+  <footer>DoubtSetu · built with Gemini · answers are study help, always double-check with your teacher</footer>
+</div>
+<script>
+let lang='en', imgData=null, imgMime=null;
+document.querySelectorAll('.lang').forEach(b=>b.onclick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));b.classList.add('on');lang=b.dataset.l;});
+document.getElementById('fill').onclick=()=>{document.getElementById('q').value='A shopkeeper gives 20% discount on a Rs 450 bag. What is the final price?';};
+document.getElementById('img').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imgData=r.result.split(',')[1];imgMime=f.type;document.getElementById('fname').textContent=f.name;};r.readAsDataURL(f);};
+const badge=document.getElementById('badge');
+document.getElementById('go').onclick=async()=>{
+  const q=document.getElementById('q').value.trim();
+  const err=document.getElementById('err'), out=document.getElementById('out');
+  if(!q&&!imgData){err.textContent='Type a doubt or attach a photo first.';err.style.display='block';return;}
+  err.style.display='none'; out.style.display='none';
+  const btn=document.getElementById('go'); btn.disabled=true; btn.textContent='Thinking...';
+  try{
+    const r=await fetch('/api/solve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,language:lang,image:imgData,image_mime:imgMime})});
+    const d=await r.json();
+    if(!r.ok){err.textContent=d.error||'Something went wrong.';err.style.display='block';}
+    else{
+      badge.textContent=d.demo_mode?'Demo mode (sample answer)':'Live AI answer';
+      badge.className='badge '+(d.demo_mode?'demo':'live');
+      document.getElementById('concept').textContent=d.concept||'';
+      const ol=document.getElementById('steps'); ol.innerHTML='';
+      (d.steps||[]).forEach(s=>{const li=document.createElement('li');li.textContent=s;ol.appendChild(li);});
+      document.getElementById('example').textContent=d.example||'';
+      const qz=document.getElementById('quiz'); qz.innerHTML='';
+      (d.quiz||[]).forEach((item,i)=>{
+        const div=document.createElement('div'); div.className='q';
+        const t=document.createElement('div'); t.className='qt'; t.textContent=(i+1)+'. '+item.question; div.appendChild(t);
+        (item.options||[]).forEach((o,j)=>{
+          const b=document.createElement('button'); b.className='opt'; b.textContent=String.fromCharCode(65+j)+') '+o;
+          b.onclick=()=>{
+            if(div.dataset.done)return; div.dataset.done=1;
+            if(j===item.answer_index){b.classList.add('sel-ok');}
+            else{b.classList.add('sel-bad'); div.children[1+j].classList.add('sel-ok');}
+            const w=div.querySelector('.why'); w.textContent='✔ '+item.why; w.style.display='block';
+          };
+          div.appendChild(b);
+        });
+        const w=document.createElement('div'); w.className='why'; div.appendChild(w);
+        qz.appendChild(div);
+      });
+      out.style.display='block'; out.scrollIntoView({behavior:'smooth'});
+    }
+  }catch(e){err.textContent='Network problem. Please try again.';err.style.display='block';}
+  btn.disabled=false; btn.textContent='Solve my doubt';
+};
+fetch('/api/health').then(r=>r.json()).then(d=>{const b=document.getElementById('banner'); if(!d.ai_ready){b.textContent='Server key pending: running in demo mode with one built-in sample.';b.style.display='block';}});
+</script>
+</body>
+</html>
