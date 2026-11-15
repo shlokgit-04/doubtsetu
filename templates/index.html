@@ -9,7 +9,14 @@
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:'Segoe UI',system-ui,sans-serif; background:linear-gradient(160deg,#0f1020 0%,#191b33 60%,#101228 100%); color:var(--ink); min-height:100vh; }
   .wrap { max-width:760px; margin:0 auto; padding:24px 16px 60px; }
-  header { text-align:center; padding:28px 0 20px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .brand { font-weight:700; font-size:1.05rem; letter-spacing:.5px; }
+  .brand span { color:var(--acc2); }
+  .authbox { display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--mut); }
+  .authbtn { background:transparent; border:1px solid #3a3d6b; color:var(--ink); padding:7px 14px; border-radius:10px; cursor:pointer; font-size:.85rem; }
+  .authbtn.primary { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:600; }
+  .uname { color:var(--acc2); }
+  header { text-align:center; padding:22px 0 18px; }
   h1 { font-size:2rem; letter-spacing:.5px; }
   h1 span { color:var(--acc2); }
   .tag { color:var(--mut); margin-top:8px; font-size:.95rem; }
@@ -27,6 +34,7 @@
   .fname { color:var(--acc2); font-size:.85rem; margin-left:6px; }
   .sample { color:var(--mut); font-size:.8rem; margin-top:10px; text-align:center; }
   .sample a { color:var(--acc2); cursor:pointer; }
+  .quota { text-align:center; color:var(--mut); font-size:.78rem; margin-top:12px; }
   .out { display:none; }
   .badge { display:inline-block; padding:4px 12px; border-radius:999px; font-size:.75rem; margin-bottom:10px; }
   .badge.live { background:rgba(45,212,191,.15); color:var(--acc2); }
@@ -42,14 +50,26 @@
   .opt.sel-ok { border-color:var(--ok); background:rgba(52,211,153,.12); }
   .opt.sel-bad { border-color:var(--bad); background:rgba(248,113,113,.12); }
   .why { color:var(--mut); font-size:.85rem; margin-top:4px; display:none; }
-  footer { text-align:center; color:#5b5f8a; font-size:.8rem; margin-top:36px; }
+  dialog { background:var(--card); color:var(--ink); border:1px solid #34376a; border-radius:16px; padding:22px; max-width:360px; width:92%; }
+  dialog::backdrop { background:rgba(10,10,25,.7); }
+  dialog h3 { margin-bottom:12px; font-size:1.1rem; }
+  dialog input { width:100%; background:#12142a; color:var(--ink); border:1px solid #34376a; border-radius:10px; padding:11px 12px; margin-bottom:10px; font-size:.95rem; }
+  dialog .wide { width:100%; }
+  dialog .derr { color:var(--bad); font-size:.85rem; min-height:1.2em; margin:2px 0 8px; }
+  dialog .switch { color:var(--mut); font-size:.82rem; margin-top:10px; text-align:center; cursor:pointer; }
+  footer { text-align:center; color:#5b5f8a; font-size:.8rem; margin-top:36px; line-height:1.8; }
+  footer a { color:#8f95c4; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="topbar">
+    <div class="brand">Doubt<span>Setu</span></div>
+    <div class="authbox" id="authbox"></div>
+  </div>
   <header>
     <h1>Doubt<span>Setu</span></h1>
-    <div class="tag">Snap your doubt, get the concept. Marathi • Hindi • English</div>
+    <div class="tag">Snap your doubt, get the concept. Marathi &bull; Hindi &bull; English</div>
   </header>
   <div class="banner" id="banner"></div>
   <div class="card">
@@ -65,6 +85,7 @@
       <span class="fname" id="fname"></span>
     </div>
     <div class="sample">No doubt ready? Try: <a id="fill">"A shopkeeper gives 20% discount on a ₹450 bag. What is the final price?"</a></div>
+    <div class="quota" id="quota"></div>
     <div class="err" id="err"></div>
   </div>
 
@@ -80,10 +101,57 @@
     <div id="quiz"></div>
   </div>
 
-  <footer>DoubtSetu · built with Gemini · answers are study help, always double-check with your teacher</footer>
+  <dialog id="authdlg">
+    <h3 id="dlgtitle">Sign in</h3>
+    <div id="regfields">
+      <input id="aname" placeholder="Your name" autocomplete="name">
+    </div>
+    <input id="aemail" type="email" placeholder="Email" autocomplete="email">
+    <input id="apass" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password">
+    <div class="derr" id="derr"></div>
+    <button class="btn wide" id="dosubmit">Sign in</button>
+    <div class="switch" id="dswitch">New here? Create an account</div>
+  </dialog>
+
+  <footer>DoubtSetu &middot; built with Gemini &middot; answers are study help, always double-check with your teacher<br>
+    <a href="/privacy.html">Privacy policy</a> &middot; <a href="/about.html">About</a> &middot; made by Shlok V. &rarr; <a href="https://shlok.is-a.dev" target="_blank" rel="noopener">shlok.is-a.dev</a></footer>
 </div>
 <script>
-let lang='en', imgData=null, imgMime=null;
+let lang='en', imgData=null, imgMime=null, regMode=false, me=null;
+const authbox=document.getElementById('authbox'), dlg=document.getElementById('authdlg');
+function renderAuth(){
+  if(me){ authbox.innerHTML='<span class="uname">'+me.name+'</span><button class="authbtn" id="outbtn">Sign out</button>';
+    document.getElementById('outbtn').onclick=()=>fetch('/api/auth/logout',{method:'POST'}).then(loadMe);
+  } else { authbox.innerHTML='<button class="authbtn primary" id="inbtn">Sign in</button>';
+    document.getElementById('inbtn').onclick=()=>{regMode=false;paintDlg();dlg.showModal();}; }
+}
+function paintDlg(){
+  document.getElementById('regfields').style.display=regMode?'block':'none';
+  document.getElementById('dlgtitle').textContent=regMode?'Create your free account':'Sign in';
+  document.getElementById('dosubmit').textContent=regMode?'Create account':'Sign in';
+  document.getElementById('dswitch').textContent=regMode?'Already have an account? Sign in':'New here? Create an account';
+  document.getElementById('derr').textContent='';
+}
+document.getElementById('dswitch').onclick=()=>{regMode=!regMode;paintDlg();};
+document.getElementById('dosubmit').onclick=async()=>{
+  const derr=document.getElementById('derr');
+  const body={email:document.getElementById('aemail').value.trim(),password:document.getElementById('apass').value};
+  if(regMode)body.name=document.getElementById('aname').value.trim();
+  const r=await fetch(regMode?'/api/auth/register':'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(!r.ok){derr.textContent=d.error||'Something went wrong.';return;}
+  dlg.close(); loadMe();
+};
+function paintQuota(d){
+  const q=document.getElementById('quota');
+  if(d.user) q.textContent='Signed in as '+d.user.email+' — 20 doubts a day.';
+  else q.textContent='Guests get 3 doubts a day. Sign in (top right) for 20 a day — free.';
+}
+async function loadMe(){
+  try{ me=(await(await fetch('/api/auth/me')).json()); me=me.user; }catch(e){ me=null; }
+  renderAuth(); paintQuota({user:me});
+}
+loadMe();
 document.querySelectorAll('.lang').forEach(b=>b.onclick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));b.classList.add('on');lang=b.dataset.l;});
 document.getElementById('fill').onclick=()=>{document.getElementById('q').value='A shopkeeper gives 20% discount on a Rs 450 bag. What is the final price?';};
 document.getElementById('img').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imgData=r.result.split(',')[1];imgMime=f.type;document.getElementById('fname').textContent=f.name;};r.readAsDataURL(f);};

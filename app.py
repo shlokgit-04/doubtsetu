@@ -2,12 +2,24 @@ import base64
 import json
 import os
 import re
-
 import requests
+import secrets
 import time
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session
+
+import auth
 
 app = Flask(__name__)
+_secret = os.environ.get("DOUBTSETU_SECRET_KEY")
+if not _secret:
+    app.logger.warning("DOUBTSETU_SECRET_KEY not set; using a per-process secret (sessions reset on restart)")
+    _secret = secrets.token_hex(32)
+app.secret_key = _secret
+app.config.update(
+    SESSION_COOKIE_NAME="doubtsetu_session", SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=(os.environ.get("DOUBTSETU_ENV") != "dev"),
+    PERMANENT_SESSION_LIFETIME=60 * 60 * 24 * 7, MAX_CONTENT_LENGTH=8 * 1024 * 1024,
+)
 
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
 MODEL = "gemini-3.8-flash"
@@ -95,8 +107,91 @@ def index():
     return render_template("index.html", has_key=bool(GEMINI_KEY))
 
 
+@app.route("/api/health")
+def health():
+    return jsonify({"ok": True, "model": MODEL, "ai_ready": bool(GEMINI_KEY)})
+
+
+# ---------------- auth ----------------
+
+def _ip():
+    return (request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            or request.remote_addr or "unknown")
+
+
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    ip = _ip()
+    if auth.limited(ip, "register"):
+        return auth.too_many("register")
+    if auth.limited(ip, "auth"):
+        return auth.too_many("auth")
+    body = request.get_json(silent=True) or {}
+    user, err = auth.create_user(body.get("email"), body.get("name"), body.get("password") or "")
+    if err:
+        return jsonify({"error": err}), 400
+    session.clear(); session["uid"] = user["id"]; session.permanent = True
+    return jsonify(auth.user_public(user)), 201
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    ip = _ip()
+    if auth.limited(ip, "auth"):
+        return auth.too_many("auth")
+    body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    if auth.login_blocked(ip, email):
+        return jsonify({"error": "Too many failed logins. Try again in 15 minutes."}), 429
+    user = auth.get_user_by_email(email)
+    if not user or not auth.verify_password(body.get("password") or "", user["pw_hash"]):
+        auth.login_fail(ip, email)
+        return jsonify({"error": "Wrong email or password."}), 401
+    session.clear(); session["uid"] = user["id"]; session.permanent = True
+    return jsonify(auth.user_public(user))
+
+
+@app.route("/api/auth/me")
+def me():
+    u = auth.current_user()
+    if not u:
+        return jsonify({"user": None, "guest": {"daily_limit": 3}}), 200
+    return jsonify({"user": auth.user_public(u), "guest": None})
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/auth/export")
+def export_data():
+    u = auth.current_user()
+    if not u:
+        return jsonify({"error": "Sign in first."}), 401
+    return jsonify({"account": auth.user_public(u), "note": "DoubtSetu stores only this account record. Doubts are not saved."})
+
+
+@app.route("/api/auth/delete", methods=["DELETE"])
+def delete_account():
+    u = auth.current_user()
+    if not u:
+        return jsonify({"error": "Sign in first."}), 401
+    auth.delete_user(u["id"])
+    session.clear()
+    return jsonify({"ok": True})
+
+
+# ---------------- solve ----------------
+
 @app.route("/api/solve", methods=["POST"])
 def solve():
+    u = auth.current_user()
+    ip = _ip()
+    kind = "solve_user" if u else "solve_guest"
+    if auth.limited(ip, kind):
+        return auth.too_many(kind)
     body = request.get_json(silent=True) or {}
     question = (body.get("question") or "").strip()
     lang = body.get("language", "en")
@@ -118,9 +213,16 @@ def solve():
         return jsonify({"error": "The AI tutor could not answer just now. Please try again in a minute."}), 502
 
 
-@app.route("/api/health")
-def health():
-    return jsonify({"ok": True, "model": MODEL, "ai_ready": bool(GEMINI_KEY)})
+# ---------------- static pages ----------------
+
+@app.route("/privacy.html")
+def privacy():
+    return render_template("privacy.html")
+
+
+@app.route("/about.html")
+def about():
+    return render_template("about.html")
 
 
 if __name__ == "__main__":

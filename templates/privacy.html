@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DoubtSetu — Privacy policy</title>
+<style>
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#0f1020; color:#f2f3fb; margin:0; }
+  .wrap { max-width:720px; margin:0 auto; padding:32px 18px 60px; }
+  h1 { font-size:1.6rem; } h1 span { color:#2dd4bf; }
+  h2 { color:#2dd4bf; font-size:1.05rem; margin:24px 0 8px; }
+  p, li { color:#dfe2f5; line-height:1.7; font-size:.95rem; }
+  ul { margin:6px 0 12px 20px; }
+  a { color:#8f95c4; }
+  footer { margin-top:40px; color:#5b5f8a; font-size:.8rem; text-align:center; line-height:1.8; }
+</style>
+</head>
+<body><div class="wrap">
+<h1>Doubt<span>Setu</span> privacy policy</h1>
+<p>Last updated: 15 November 2026. DoubtSetu is an AI tutor for school students. This page explains exactly what the app stores and what it never does.</p>
+<h2>What we collect</h2>
+<ul>
+  <li><b>Account:</b> if you create one, we store your name, email and a bcrypt-hashed password. We never store or see your plain password.</li>
+  <li><b>Guests:</b> you can use DoubtSetu without an account. Guests get 3 doubts a day, tracked per network address, and nothing else is kept.</li>
+  <li><b>Doubts:</b> your question (and photo, if you attach one) is sent to the Google Gemini API to generate the answer. Doubts are <b>not</b> stored in DoubtSetu's database. Google's handling of Gemini API inputs is described in Google's own terms for the API.</li>
+</ul>
+<h2>Cookies</h2>
+<p>One session cookie keeps you signed in. It is HttpOnly (scripts cannot read it), SameSite=Lax, and Secure in production. There are no advertising or tracking cookies.</p>
+<h2>Your rights</h2>
+<ul>
+  <li><b>Export:</b> sign in and open <a href="/api/auth/export">/api/auth/export</a> to download everything stored about your account.</li>
+  <li><b>Deletion:</b> sign in and send a DELETE request to /api/auth/delete, or email the address below and we will delete your account.</li>
+</ul>
+<h2>Children's privacy</h2>
+<p>DoubtSetu is built for school students. We collect the minimum needed for an account (name, email, hashed password) and nothing else. Parents or guardians who want an account removed can write to us.</p>
+<h2>Contact</h2>
+<p>Questions or deletion requests: open an issue at github.com/shlokgit-04/doubtsetu.</p>
+<footer>DoubtSetu &middot; made by Shlok V. &rarr; <a href="https://shlok.is-a.dev">shlok.is-a.dev</a><br>
+<a href="/">Back to DoubtSetu</a> &middot; <a href="/about.html">About</a></footer>
+</div></body></html>
