@@ -71,6 +71,9 @@ def _clean_json(text):
     return text
 
 
+MODELS = [MODEL, "gemini-3.5-flash-lite"]  # primary first, lite as the high-demand fallback
+
+
 def call_gemini(question, lang, image_b64=None, image_mime=None):
     parts = [{"text": PROMPT.format(language=LANGS.get(lang, LANGS["en"]), question=question or "(see the photo I sent)")}]
     if image_b64:
@@ -79,27 +82,29 @@ def call_gemini(question, lang, image_b64=None, image_mime=None):
         "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048, "responseMimeType": "application/json"},
     }
-    resp = None
-    for attempt in range(3):
-        try:
-            resp = requests.post(API_URL, headers={"x-goog-api-key": GEMINI_KEY}, json=payload, timeout=60)
-        except requests.RequestException as e:
-            app.logger.error('gemini network error attempt %s: %s', attempt + 1, e)
-            if attempt == 2:
-                raise
-            time.sleep(2 * (attempt + 1))
-            continue
-        if resp.status_code in (429, 500, 503) and attempt < 2:
-            app.logger.warning('gemini http %s on attempt %s, retrying', resp.status_code, attempt + 1)
-            time.sleep(2 * (attempt + 1))
-            continue
-        break
-    if not resp.ok:
-        app.logger.error('gemini http %s: %s', resp.status_code, resp.text[:400])
-        resp.raise_for_status()
-    data = resp.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    return json.loads(_clean_json(text))
+    last_error = None
+    # two passes: primary model retried once, then the lite fallback model
+    for model in MODELS:
+        api_url = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % model
+        for attempt in range(2):
+            try:
+                resp = requests.post(api_url, headers={"x-goog-api-key": GEMINI_KEY}, json=payload, timeout=30)
+            except requests.RequestException as e:
+                app.logger.error('gemini network error %s attempt %s: %s', model, attempt + 1, e)
+                last_error = e
+                time.sleep(2 * (attempt + 1))
+                continue
+            if resp.ok:
+                data = resp.json()
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                return json.loads(_clean_json(text))
+            app.logger.error('gemini %s http %s: %s', model, resp.status_code, resp.text[:400])
+            last_error = "gemini http %s" % resp.status_code
+            if resp.status_code in (429, 500, 503) and attempt < 1:
+                time.sleep(2)
+                continue
+            break
+    raise RuntimeError("gemini unavailable: %s" % last_error)
 
 
 @app.route("/")
@@ -109,7 +114,7 @@ def index():
 
 @app.route("/api/health")
 def health():
-    return jsonify({"ok": True, "model": MODEL, "ai_ready": bool(GEMINI_KEY)})
+    return jsonify({"ok": True, "model": MODELS[0], "fallback_model": MODELS[1], "ai_ready": bool(GEMINI_KEY)})
 
 
 # ---------------- auth ----------------
